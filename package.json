@@ -1,0 +1,9 @@
+{
+  "name": "percepta",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node demo/server.mjs",
+    "start": "node demo/server.mjs"
+  }
+}

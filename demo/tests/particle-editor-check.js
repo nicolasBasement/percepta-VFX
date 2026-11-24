@@ -1,0 +1,53 @@
+export default async () => {
+ const p=window.percepta,e=p.editor,$=id=>document.getElementById(id),wait=ms=>new Promise(r=>setTimeout(r,ms)),results=[];
+ const check=(name,condition,detail)=>{results.push({name,pass:!!condition,detail});if(!condition)throw new Error(name+': '+JSON.stringify(detail));};
+ const set=(id,value,event='input')=>{$(id).value=value;$(id).dispatchEvent(new Event(event,{bubbles:true}));};
+ set('camera-mode',0);set('motion',0);
+ $('layer-add').click();set('color-mode',1);set('color-a','#ff7722');set('layer-opacity',35);document.querySelector('[data-shape="3"]').click();
+ check('Layers: independent appearance',e.layers[0].shape===0&&e.layers[1].shape===3&&e.layers[0].opacity===100&&e.layers[1].opacity===35);
+ check('Layers: shared morph uniforms, distinct style uniforms',e.layers[0].material.uniforms.uProgress===e.layers[1].material.uniforms.uProgress&&e.layers[0].material.uniforms.uShape!==e.layers[1].material.uniforms.uShape);
+ set('progress',500);await wait(1600);
+ check('Layers: follow same morph',Math.abs(p.getState().current-.5)<.001&&e.layers.every(l=>Math.abs(l.material.uniforms.uProgress.value-.5)<.001));
+ set('density',10000,'change');while(!p.getState().ready)await wait(100);
+ check('Layers: density rebuild updates all shared geometry',e.layers.every(l=>l.points.geometry===e.layers[0].points.geometry&&l.points.geometry.attributes.position.count===10000));
+ await e.example();check('Sprite: example loads with grid and activates sprite',e.layer.shape===6&&e.layer.cols===4&&e.layer.rows===2&&e.layer.asset.image.width===512);
+ const asset=e.layer.asset;
+ await e.loadSprite(new File(['bad image'],'broken.png',{type:'image/png'}));
+ check('Sprite: invalid image preserves current asset',e.layer.asset===asset&&!e.layer.uploading);
+ set('atlas-cols',99,'change');set('atlas-rows',0,'change');
+ check('Atlas: grid inputs constrained',e.layer.cols===16&&e.layer.rows===1);
+ set('atlas-frame',15);set('atlas-cols',2,'change');
+ check('Atlas: frame clamped after grid change',e.layer.frame===1&&Number($('atlas-frame').max)===1);
+ set('atlas-mode',2);set('atlas-fps',12);check('Atlas: animation controls update shader',e.layer.material.uniforms.uAtlasMode.value===2&&e.layer.material.uniforms.uAtlasFPS.value===12);
+ $('sprite-remove').click();check('Sprite: remove restores procedural point',!e.layer.asset&&e.layer.shape===0&&e.layer.material.uniforms.uHasSprite.value===0);
+ set('color-mode',2);set('color-a','#55ccff');set('color-b','#ff77bb');
+ const selectedID=e.layer.id;
+ document.querySelector('.layer-delete').click();
+ check('Layers: removing original preserves successor appearance',e.layers.length===1&&e.layer.id===selectedID&&e.layer.colorMode===2&&e.layer.material===e.material);
+ $('layer-add').click();$('layer-add').click();$('layer-add').click();
+ check('Layers: maximum four layers',e.layers.length===4&&$('layer-add').disabled);
+ document.querySelectorAll('.layer-visible')[3].click();
+ check('Layers: visibility updates rendering',e.layers[3].points.visible===false);
+ while(e.layers.length>1)e.removeLayer(e.layers.at(-1));$('editor-reset').click();
+ check('Layers: reset selected layer',e.layer.shape===0&&e.layer.colorMode===0&&e.layer.opacity===100);
+ set('atmosphere-dust',50);set('atmosphere-haze',60);set('fog-ground',40);set('fog-density',55);
+ check('Atmosphere: independent depth, ground, haze and dust',p.fx.volumes.every(v=>v.visible)&&p.fx.getState().haze===.6&&p.fx.getState().groundFog===.4);
+ check('Atmosphere: fog uniforms shared across surfaces',e.material.uniforms.uFogColor===p.fx.volumes[0].material.uniforms.uFogColor);
+ const controls=p.fx.controls;
+ p.fx.beforeCamera();p.fx.offset.set(0,0,0);const baseline=p.camera.position.clone();
+ set('camera-mode',1);set('camera-intensity',80);e.pointer.set(.8,.5);e.pointerInside=true;
+ for(let i=0;i<120;i++){p.fx.beforeCamera();controls.update(.016);p.fx.update(.016,0,.5);}
+ check('Camera: parallax applies bounded offset',p.fx.offset.length()>.2&&p.fx.offset.length()<1,p.fx.offset.length());
+ check('Camera: animation does not accumulate drift',p.camera.position.clone().sub(p.fx.offset).distanceTo(baseline)<.0001);
+ e.pointerInside=false;set('camera-mode',0);
+ for(let i=0;i<200;i++){p.fx.beforeCamera();controls.update(.016);p.fx.update(.016,0,.5);}
+ check('Camera: stable mode recovers orbit position',p.camera.position.distanceTo(baseline)<.001,p.camera.position.distanceTo(baseline));
+ const viewport=$('viewport'),rect=viewport.getBoundingClientRect();
+ viewport.dispatchEvent(new PointerEvent('pointermove',{clientX:rect.left+rect.width*.5,clientY:rect.top+rect.height*.5,pointerType:'mouse'}));await wait(300);
+ check('Mouse: pointer activates influence',p.getState().editor.interaction.active>.8);
+ viewport.dispatchEvent(new PointerEvent('pointerleave',{pointerType:'mouse'}));await wait(900);
+ check('Mouse: leaving restores shape influence',p.getState().editor.interaction.active<.01);
+ for(let i=1;i<5;i++){set('interaction-mode',i);check('Mouse: select effect '+i,e.material.uniforms.uInteraction.value===i);}
+ set('density',40000,'change');while(!p.getState().ready)await wait(100);set('progress',0);set('fog-density',15);set('fog-ground',0);set('atmosphere-dust',0);set('atmosphere-haze',0);set('interaction-mode',1);set('camera-mode',1);set('camera-intensity',25);set('motion',20);
+ window.particleUIResults=results;return results;
+};

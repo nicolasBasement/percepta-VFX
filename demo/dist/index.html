@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090b0d">
+<meta name="description" content="A particle studio for shaping models, motion and light. Tune every layer with DialKit and save complete presets.">
+<title>Percepta — Particle Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%23090b0d'/%3E%3Cpath d='M11 29V11h11a7 7 0 010 14h-6' fill='none' stroke='%23d7fc70' stroke-width='4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./vendor/dialkit/styles.css"><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./studio.css">
+<script type="importmap">{"imports":{"three":"./vendor/build/three.module.js","three/addons/":"./vendor/examples/jsm/"}}</script>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="./" aria-label="Percepta home"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 26V6h13a7 7 0 010 14h-7"/><circle cx="25" cy="26" r="2"/></svg>percepta<span>LAB</span></a><div class="top-caption">FROM MATTER TO MOTION.</div><button id="help-button" class="quiet">How it works <span class="key">?</span></button></header>
+<main class="workspace">
+<aside class="sidebar model-library">
+<div class="intro"><div class="eyebrow">PARTICLE STUDIO</div><h1>Give form<br>to a feeling.</h1><p>Build a look. Shape its motion.<br>Keep every experiment.</p></div>
+<section class="sequence-section"><div class="section-heading"><h2>Model sequence</h2><span id="model-total" class="subtle">3 models</span></div><div id="model-list" class="model-list"></div>
+<button id="upload-button" class="upload"><span class="plus">+</span><span>Import models<small>GLB · glTF + files · OBJ</small></span></button><input id="file-input" type="file" multiple accept=".glb,.gltf,.obj,.bin,.png,.jpg,.jpeg,.webp,.ktx2" hidden><p class="local-note">Your files stay in this browser.</p></section>
+<section><div class="section-heading"><h2>Appearance</h2><span class="subtle">SHADER</span></div><div class="presets" role="group" aria-label="Particle appearance"><button data-preset="mono" class="preset active"><i class="swatch mono"></i>Mono</button><button data-preset="lidar" class="preset"><i class="swatch lidar"></i>LiDAR</button><button data-preset="texture" class="preset"><i class="swatch texture"></i>Texture</button><button data-preset="paper" class="preset"><i class="swatch paper"></i>Paper</button></div>
+<label class="control" for="density"><span>Particles</span><output id="density-value">40.000</output></label><input id="density" type="range" min="10000" max="90000" step="10000" value="40000">
+<label class="control" for="size"><span>Point size</span><output id="size-value">2.2</output></label><input id="size" type="range" min=".5" max="16" step=".1" value="2.2">
+<label class="control" for="scatter"><span>Morph scatter</span><output id="scatter-value">55%</output></label><input id="scatter" type="range" min="0" max="100" step="1" value="55">
+<label class="control" for="motion"><span>Organic motion</span><output id="motion-value">20%</output></label><input id="motion" type="range" min="0" max="100" step="1" value="20">
+<div class="toggles"><label>Auto orbit<input id="rotate" type="checkbox" role="switch"><span></span></label><label>Floor particles<input id="field" type="checkbox" role="switch" checked><span></span></label></div></section>
+
+<div class="sidebar-foot"><span>REAL-TIME EXPERIMENTS</span><span>v.08</span></div></aside>
+<section class="stage" aria-label="Interactive particle view">
+<div id="viewport" tabindex="0" aria-label="3D model. Drag to orbit and scroll to morph."></div>
+<div class="stage-top"><div><span class="live-dot"></span><span id="stage-status">PREPARING PARTICLES</span></div><span id="fps">— FPS</span></div>
+<div class="scene-label"><span class="eyebrow" id="scene-index">SHAPE 01 / 03</span><h2 id="scene-name">City</h2><p id="scene-detail">Architecture in points</p></div>
+<div class="view-tools"><button id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button><button id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button><button id="reset-camera" aria-label="Reset camera" title="Reset camera">⌖</button><button id="capture" aria-label="Save PNG image" title="Save image">▣</button></div>
+<div class="scroll-hint"><span class="mouse-icon"></span><span class="desktop-hint">Scroll to morph</span><span class="mobile-hint">Move the slider to morph</span><span class="hint-divider"></span><span>Drag to explore</span></div>
+<div class="timeline"><div class="timeline-top"><button id="play" class="play-button" aria-label="Play sequence">▶</button><div class="timeline-title"><span>TRANSITION</span><strong id="transition-name">City <span>→</span> Orbit</strong></div><output id="progress-value">00%</output></div><input id="progress" type="range" min="0" max="2000" value="0" step="1" aria-label="Morph progress"><div class="timeline-labels" id="timeline-labels"></div></div>
+<div id="drop-overlay" hidden><span>Drop a new form.</span><small>GLB, glTF with its files, or OBJ</small></div>
+<div id="loading" class="loading">Converting surfaces into particles…</div>
+<div id="toast" role="status" hidden></div>
+</section>
+
+
+<aside class="editor-panel" aria-label="Particle editor">
+<section class="simple-presets"><div class="section-heading"><h3>Presets</h3><span class="subtle">SAVED LOOKS</span></div><div id="preset-versions" class="dialkit-root" data-theme="dark"></div><div class="preset-tools"><label class="sr-only" for="preset-name">New preset name</label><input id="preset-name" maxlength="80" placeholder="Name this look…" autocomplete="off"><button id="save-preset" class="primary">Save preset</button><div class="preset-transfer"><button id="import-preset">Import preset</button><button id="export-preset">Export preset</button></div><input id="preset-file" type="file" accept=".json,application/json" hidden><p id="studio-status" role="status">Preparing controls…</p></div>
+</section><div class="editor-header"><div><div class="eyebrow">PARTICLE DESIGN</div><h2>Design each particle.</h2></div><button id="editor-reset" class="small-button" title="Reset selected layer">Reset layer</button></div>
+<nav class="editor-nav" aria-label="Editor sections"><button data-editor-section="shape-section">Shape</button><button data-editor-section="color-section">Color</button><button data-editor-section="sprite-section">Sprite / atlas</button><button data-editor-section="pattern-section">Pattern</button><button data-editor-section="interaction-section">Mouse</button><button data-editor-section="atmosphere-section">Atmosphere</button><button data-editor-section="camera-section">Camera</button><button data-editor-section="post-section">Bloom</button><button data-editor-section="light-section">Light</button><button data-editor-section="reveal-section">Zoom reveal</button></nav><section class="layers-section"><div class="section-heading"><h3>Layers</h3><button id="layer-add" class="small-button" hidden>+ Add</button></div><div id="layer-list"></div><p class="editor-note" id="layer-budget"></p><p class="editor-note layer-guide">Choose a layer to edit. Use the circle to show or hide it.</p></section>
+<div class="selected-layer"><span>EDITING</span><input id="layer-name" maxlength="32" aria-label="Layer name"></div>
+
+<details class="editor-section" id="interaction-section"><summary>Mouse interaction</summary><div class="editor-section-body">
+<label class="editor-label" for="interaction-mode">Interaction mode</label><select id="interaction-mode"><option value="0">None</option><option value="5" selected>Particle flow</option><option value="6">Mixed flow · carry & grow</option><option value="1">Radial repel</option><option value="2">Attract</option><option value="3">Vortex</option><option value="4">Waves</option></select>
+<label class="control" for="interaction-radius"><span id="interaction-radius-label">Trail width</span><output id="interaction-radius-value">0.80</output></label><input id="interaction-radius" type="range" min=".15" max="2.5" step=".05" value=".8">
+<label class="control" for="interaction-strength"><span>Strength</span><output id="interaction-strength-value">45%</output></label><input id="interaction-strength" type="range" min="0" max="100" value="45">
+
+<div id="flow-controls">
+<label class="control" for="flow-inertia"><span>Flow inertia</span><output id="flow-inertia-value">50%</output></label><input id="flow-inertia" type="range" min="0" max="100" value="50">
+<label class="control" for="flow-recovery"><span>Return speed</span><output id="flow-recovery-value">60%</output></label><input id="flow-recovery" type="range" min="0" max="100" value="60">
+<label class="control" for="flow-swirl"><span>Particle dispersion</span><output id="flow-swirl-value">55%</output></label><input id="flow-swirl" type="range" min="0" max="100" value="55">
+</div>
+<div id="carry-controls" hidden>
+<label class="control" for="carry-mix"><span>Carry strength</span><output id="carry-mix-value">65%</output></label><input id="carry-mix" type="range" min="0" max="100" value="65">
+<label class="control" for="carry-duration"><span>Release after</span><output id="carry-duration-value">1.6 s</output></label><input id="carry-duration" type="range" min=".3" max="3.5" step=".1" value="1.6">
+<label class="control" for="carry-scale"><span>Growth while following</span><output id="carry-scale-value">+80%</output></label><input id="carry-scale" type="range" min="0" max="200" step="5" value="80">
+</div>
+<label class="editor-check"><input id="layer-hover" type="checkbox" checked>This layer responds to the mouse</label>
+<p class="editor-note" id="interaction-note">Particles recover as the cursor moves away. Drag to orbit on touchscreens.</p>
+</div></details><details class="editor-section" id="shape-section" open><summary>Shape & size</summary><div class="editor-section-body">
+<div class="shape-options" role="group" aria-label="Particle shape">
+<button data-shape="0" class="active" aria-pressed="true"><b>●</b>Circle</button><button data-shape="1" aria-pressed="false"><b>■</b>Square</button><button data-shape="2" aria-pressed="false"><b>◆</b>Diamond</button><button data-shape="3" aria-pressed="false"><b>◎</b>Ring</button><button data-shape="4" aria-pressed="false"><b>✦</b>Star</button><button data-shape="5" aria-pressed="false"><b>+</b>Cross</button><button data-shape="6" aria-pressed="false"><b>▧</b>Sprite</button>
+</div>
+<label class="control" for="layer-size"><span>Layer scale</span><output id="layer-size-value">1.0×</output></label><input id="layer-size" type="range" min=".25" max="8" step=".05" value="1">
+<label class="control" for="layer-opacity"><span>Opacity</span><output id="layer-opacity-value">100%</output></label><input id="layer-opacity" type="range" min="0" max="100" value="100">
+<label class="control" for="layer-rotation"><span>Particle rotation</span><output id="layer-rotation-value">0°</output></label><input id="layer-rotation" type="range" min="0" max="360" value="0">
+<label class="editor-check"><input id="layer-random" type="checkbox">Random rotation</label>
+<label class="control" for="layer-softness"><span>Soft edges</span><output id="layer-softness-value">45%</output></label><input id="layer-softness" type="range" min="0" max="100" value="45">
+<label class="control" for="layer-offset"><span>Surface offset</span><output id="layer-offset-value">0.00</output></label><input id="layer-offset" type="range" min="-.5" max=".8" step=".01" value="0">
+<label class="editor-label" for="layer-blend">Blending</label><select id="layer-blend"><option value="normal">Normal</option><option value="additive">Additive</option></select>
+</div></details>
+<details class="editor-section" id="color-section"><summary>Color</summary><div class="editor-section-body">
+<label class="editor-label" for="color-mode">Color source</label><select id="color-mode"><option value="0">Global look</option><option value="1">Solid</option><option value="2">Height gradient</option><option value="3">Random blend</option><option value="4">Model texture</option></select>
+<div class="color-pair"><label>Color A<input id="color-a" type="color" value="#d6f880"></label><label>Color B<input id="color-b" type="color" value="#b498ff"></label></div>
+<p class="editor-note">A and B control solid, gradient and random colors. Global look follows Appearance on the left.</p>
+</div></details>
+<details class="editor-section" id="pattern-section"><summary>Distribution pattern</summary><div class="editor-section-body">
+<label class="editor-label" for="pattern-mode">Pattern</label><select id="pattern-mode"><option value="0">Organic surface</option><option value="1">3D grid</option><option value="2">Scan lines</option><option value="3">3D checker</option><option value="4">Concentric rings</option></select>
+<label class="control" for="pattern-scale"><span>Pattern spacing</span><output id="pattern-scale-value">0.12</output></label><input id="pattern-scale" type="range" min=".03" max=".6" step=".01" value=".12">
+<label class="control" for="pattern-fill"><span>Coverage</span><output id="pattern-fill-value">55%</output></label><input id="pattern-fill" type="range" min="5" max="100" value="55">
+<p class="editor-note">The grid aligns positions. Other patterns filter surface points; coverage controls how much remains visible.</p>
+</div></details>
+<details class="editor-section" id="sprite-section"><summary>Sprite / atlas</summary><div class="editor-section-body">
+<label class="editor-label" for="saved-sprite">Saved sprites</label><select id="saved-sprite"><option value="">No sprite</option></select><div id="sprite-drop" class="sprite-drop"><canvas id="sprite-preview" width="240" height="100" aria-label="Sprite preview"></canvas><button id="sprite-upload" class="small-button">Upload sprite / atlas</button><span id="sprite-filename">PNG · WebP · JPG · up to 16 MB</span><input id="sprite-input" type="file" accept="image/png,image/webp,image/jpeg" hidden></div>
+<div class="sprite-actions"><button id="sprite-example" class="small-button">Try example atlas</button><button id="sprite-remove" class="small-button" disabled>Remove</button></div>
+<div class="editor-grid"><label>Columns<input id="atlas-cols" type="number" min="1" max="16" value="1"></label><label>Rows<input id="atlas-rows" type="number" min="1" max="16" value="1"></label></div>
+<label class="editor-label" for="atlas-mode">Frame selection</label><select id="atlas-mode"><option value="0">Fixed frame</option><option value="1">Random per particle</option><option value="2">Animated atlas</option></select>
+<label class="control" for="atlas-frame"><span>Starting frame</span><output id="atlas-frame-value">1 / 1</output></label><input id="atlas-frame" type="range" min="0" max="0" step="1" value="0">
+<label class="control" for="atlas-fps"><span>Animation speed</span><output id="atlas-fps-value">8 fps</output></label><input id="atlas-fps" type="range" min="1" max="30" value="8">
+<label class="editor-check"><input id="sprite-tint" type="checkbox">Tint with layer color</label>
+<label class="editor-label" for="sprite-alpha">Transparency</label><select id="sprite-alpha"><option value="0">Image alpha</option><option value="1">Remove black</option><option value="2">Remove white</option></select>
+<p class="editor-note">Frames run left to right, then top to bottom. Use 1 × 1 for a single sprite. Uploading an image selects the Sprite shape.</p>
+</div></details>
+
+<details class="editor-section" id="post-section"><summary>Bloom & finish</summary><div class="editor-section-body">
+<label class="editor-check"><input id="post-enabled" type="checkbox" checked>Enable postprocessing</label>
+<label class="control" for="bloom-strength"><span>Bloom strength</span><output id="bloom-strength-value">0.35</output></label><input id="bloom-strength" type="range" min="0" max="3" step=".05" value=".35">
+<label class="control" for="bloom-radius"><span>Halo radius</span><output id="bloom-radius-value">25%</output></label><input id="bloom-radius" type="range" min="0" max="100" value="25">
+<label class="control" for="bloom-threshold"><span>Brightness threshold</span><output id="bloom-threshold-value">0.55</output></label><input id="bloom-threshold" type="range" min="0" max="2" step=".05" value=".55">
+<label class="control" for="post-exposure"><span>Exposure</span><output id="post-exposure-value">1.00</output></label><input id="post-exposure" type="range" min=".25" max="3" step=".05" value="1">
+<label class="control" for="post-vignette"><span>Vignette</span><output id="post-vignette-value">15%</output></label><input id="post-vignette" type="range" min="0" max="100" value="15">
+<label class="control" for="post-grain"><span>Film grain</span><output id="post-grain-value">0%</output></label><input id="post-grain" type="range" min="0" max="100" value="0">
+<p class="editor-note">The threshold decides which highlights glow. PNG captures include postprocessing.</p>
+</div></details>
+<details class="editor-section" id="light-section"><summary>Light on geometry</summary><div class="editor-section-body">
+<label class="editor-check"><input id="light-enabled" type="checkbox">Enable particle lighting</label>
+<label class="editor-label" for="light-type">Light type</label><select id="light-type"><option value="1" selected>Directional</option><option value="0">Point</option><option value="2">Spot toward center</option></select>
+<label class="control" for="light-x"><span>Position X</span><output id="light-x-value">4.0</output></label><input id="light-x" type="range" min="-10" max="10" step=".1" value="4">
+<label class="control" for="light-y"><span>Position Y</span><output id="light-y-value">5.0</output></label><input id="light-y" type="range" min="-10" max="10" step=".1" value="5">
+<label class="control" for="light-z"><span>Position Z</span><output id="light-z-value">3.0</output></label><input id="light-z" type="range" min="-10" max="10" step=".1" value="3">
+<div class="color-pair"><label>Light color<input id="light-color" type="color" value="#ffe7c1"></label></div>
+<label class="control" for="light-intensity"><span>Strength</span><output id="light-intensity-value">2.00</output></label><input id="light-intensity" type="range" min="0" max="6" step=".05" value="2">
+<label class="control" for="light-range"><span>Range</span><output id="light-range-value">8.0</output></label><input id="light-range" type="range" min="1" max="20" step=".5" value="8">
+<label class="control" for="light-angle"><span>Spot cone angle</span><output id="light-angle-value">35°</output></label><input id="light-angle" type="range" min="10" max="85" value="35">
+<label class="control" for="light-size"><span>Size response to light</span><output id="light-size-value">80%</output></label><input id="light-size" type="range" min="0" max="100" value="80">
+<label class="control" for="light-shadow"><span>Shadow fill</span><output id="light-shadow-value">0%</output></label><input id="light-shadow" type="range" min="0" max="100" value="0">
+<label class="control" for="light-cutoff"><span>Minimum light</span><output id="light-cutoff-value">0.04</output></label><input id="light-cutoff" type="range" min="0" max=".8" step=".01" value=".04">
+<label class="editor-check"><input id="light-helper" type="checkbox">Show position and direction</label>
+<label class="editor-check"><input id="layer-light" type="checkbox" checked>This layer responds to light</label>
+<p class="editor-note">Set shadow fill to 0% to show only illuminated faces. Lighting uses face normals, without cast shadows.</p>
+</div></details>
+<details class="editor-section" id="reveal-section"><summary>Zoom reveal</summary><div class="editor-section-body">
+<div class="reveal-reference"><button id="reveal-macro" class="small-button">Prepare macro pull back</button><p class="editor-note">Start among the particles, then pull back to discover the full shape.</p><button id="reveal-overview" class="small-button">Show full model</button></div>
+<label class="editor-check"><input id="reveal-enabled" type="checkbox">Enable reveal mode</label>
+<label class="editor-label" for="reveal-style">Reveal style</label><select id="reveal-style"><option value="0">Particle fade + camera travel</option><option value="1">Macro pull back · visible particles</option></select>
+<label class="editor-label" for="reveal-direction">Direction</label><select id="reveal-direction"><option value="0">Approach and reveal</option><option value="1">Pull back from detail</option></select>
+<label class="control" for="reveal-progress"><span>Reveal progress</span><output id="reveal-progress-value">0%</output></label><input id="reveal-progress" type="range" min="0" max="100" step=".1" value="0">
+<div class="sprite-actions"><button id="reveal-play" class="small-button">Reproducir reveal</button><button id="reveal-reset" class="small-button">Restart</button></div>
+<label class="control" for="reveal-duration"><span>Duration</span><output id="reveal-duration-value">4.0 s</output></label><input id="reveal-duration" type="range" min="1" max="30" step=".5" value="4">
+<label class="control" for="reveal-start"><span>Start distance</span><output id="reveal-start-value">18.0</output></label><input id="reveal-start" type="range" min=".2" max="30" step=".05" value="18">
+<label class="control" for="reveal-end"><span>End distance</span><output id="reveal-end-value">8.5</output></label><input id="reveal-end" type="range" min=".2" max="30" step=".05" value="8.5">
+<div id="reveal-macro-controls" hidden>
+<label class="control" for="reveal-hold"><span>Hold final frame</span><output id="reveal-hold-value">20%</output></label><input id="reveal-hold" type="range" min="0" max="40" step="1" value="20">
+<button id="reveal-focus" class="small-button">Focus on visible detail</button>
+<p class="editor-note">Orbit to choose a side, then focus. The closest detail near the center becomes the starting point.</p>
+<label class="control" for="reveal-focus-x"><span>Detail X</span><output id="reveal-focus-x-value">0.00</output></label><input id="reveal-focus-x" type="range" min="-4" max="4" step=".01" value="0">
+<label class="control" for="reveal-focus-y"><span>Detail Y</span><output id="reveal-focus-y-value">0.00</output></label><input id="reveal-focus-y" type="range" min="-4" max="4" step=".01" value="0">
+<label class="control" for="reveal-focus-z"><span>Detail Z</span><output id="reveal-focus-z-value">0.00</output></label><input id="reveal-focus-z" type="range" min="-4" max="4" step=".01" value="0">
+</div>
+<label class="editor-label" for="scroll-action">Scroll over the scene</label><select id="scroll-action"><option value="morph">Morph models</option><option value="reveal">Control zoom reveal</option></select>
+<p class="editor-note">Off by default: scroll changes models. Enable reveal mode to control the reveal with scroll. Turn it off to return to your model view. Play and Prepare also activate reveal mode.</p>
+</div></details>
+<details class="editor-section" id="atmosphere-section"><summary>Atmosphere & depth</summary><div class="editor-section-body">
+<label class="control" for="fog-density"><span>Depth fog</span><output id="fog-density-value">15%</output></label><input id="fog-density" type="range" min="0" max="100" value="15">
+<label class="control" for="fog-ground"><span>Ground fog</span><output id="fog-ground-value">0%</output></label><input id="fog-ground" type="range" min="0" max="100" value="0">
+<label class="control" for="fog-near"><span>Fog start</span><output id="fog-near-value">5.0</output></label><input id="fog-near" type="range" min="1" max="15" step=".5" value="5">
+<div class="color-pair"><label>Atmosphere color<input id="fog-color" type="color" value="#395165"></label></div>
+<label class="control" for="atmosphere-haze"><span>Haze</span><output id="atmosphere-haze-value">0%</output></label><input id="atmosphere-haze" type="range" min="0" max="100" value="0">
+<label class="control" for="atmosphere-dust"><span>Suspended dust</span><output id="atmosphere-dust-value">0%</output></label><input id="atmosphere-dust" type="range" min="0" max="100" value="0">
+<p class="editor-note">Fog separates depth planes. Haze and dust occupy the 3D space.</p>
+</div></details>
+<details class="editor-section" id="camera-section"><summary>Camera & feedback</summary><div class="editor-section-body">
+<label class="editor-label" for="camera-mode">Movement</label><select id="camera-mode"><option value="0">Stable camera</option><option value="1" selected>Mouse parallax</option><option value="2">Gentle breathing</option><option value="3">Morph travel</option><option value="4">Cinematic blend</option></select>
+<label class="control" for="camera-intensity"><span>Strength</span><output id="camera-intensity-value">25%</output></label><input id="camera-intensity" type="range" min="0" max="100" value="25">
+<label class="control" for="camera-speed"><span>Breathing speed</span><output id="camera-speed-value">1.0×</output></label><input id="camera-speed" type="range" min=".2" max="2" step=".1" value="1">
+<p class="editor-note">Feedback eases out while you drag. Stable camera keeps only manual control.</p>
+</div></details>
+<input id="studio-sprite-input" type="file" accept="image/png,image/jpeg,image/webp" hidden></aside>
+</main>
+<dialog id="asset-preview"><button id="asset-preview-close" class="close" aria-label="Close sprite preview">×</button><h2 id="asset-preview-name">Sprite</h2><img id="asset-preview-image" alt="Selected sprite or atlas"><p>Atlas frames run left to right, then top to bottom.</p></dialog>
+<dialog id="help"><button id="close-help" aria-label="Close help" class="close">×</button><div class="eyebrow">FROM SURFACES TO PARTICLES</div><h2>Make room to experiment.</h2><p>Import models, shape their particles, and save complete looks with DialKit.</p><ul>
+<li><strong>Models:</strong> GLB is recommended. For glTF, include its .bin and image files. OBJ supports geometry without external materials.</li>
+<li><strong>Layers:</strong> enable up to four layers. Each has its own shape, color, pattern and sprite. Select a layer, then use the Sprite / atlas section.</li>
+<li><strong>Interaction:</strong> choose particle flow or mixed flow to carry and grow particles briefly before they return.</li>
+<li><strong>Lighting & finish:</strong> light controls face visibility and size. Bloom, exposure, vignette and grain finish the image.</li>
+<li><strong>Camera:</strong> use feedback and zoom reveal, or orbit manually. Scroll can control the morph or the reveal.</li>
+<li><strong>Presets:</strong> name a look and choose Save preset. Switch versions in the Presets menu. Edits stay with the selected version. Import / Export transfers the controls and sprites as JSON.</li></ul>
+<p class="help-note">Presets and sprites stay in this browser. Model files are separate and need to be loaded again after a refresh. Models are centered and normalized. Initial pose only; animation clips and KTX2 are not supported. Up to 6 models and 100 MB per import. Lighting uses face normals without cast shadows.</p><button id="help-done" class="primary">Start exploring</button></dialog>
+<script type="module" src="./app.js"></script>
+</body></html>
